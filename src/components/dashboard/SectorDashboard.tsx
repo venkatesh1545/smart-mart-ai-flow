@@ -10,10 +10,15 @@ import {
   Building, 
   Store,
   MessageCircle,
-  Bot
+  Bot,
+  ArrowLeft,
+  ShoppingCart as CartIcon
 } from 'lucide-react';
 import { AIAssistant } from './AIAssistant';
 import { SectorContent } from './SectorContent';
+import { ProductBrowser } from './ProductBrowser';
+import { Cart } from './Cart';
+import { QRCodeDisplay } from './QRCodeDisplay';
 
 export type SectorType = 'retail' | 'education' | 'healthcare' | 'general' | null;
 
@@ -23,6 +28,14 @@ interface Sector {
   icon: React.ComponentType<any>;
   description: string;
   color: string;
+}
+
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  location: string;
 }
 
 const sectors: Sector[] = [
@@ -59,15 +72,155 @@ const sectors: Sector[] = [
 export const SectorDashboard = () => {
   const [selectedSector, setSelectedSector] = useState<SectorType>(null);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [currentView, setCurrentView] = useState<'main' | 'products' | 'cart' | 'qr'>('main');
+  const [selectedStore, setSelectedStore] = useState<{id: string, name: string} | null>(null);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [qrData, setQrData] = useState<any>(null);
 
   const handleSectorSelect = (sectorId: SectorType) => {
     setSelectedSector(sectorId);
     setShowAIAssistant(true);
+    setCurrentView('main');
   };
 
   const handleBackToSectors = () => {
     setSelectedSector(null);
     setShowAIAssistant(false);
+    setCurrentView('main');
+    setSelectedStore(null);
+    setCartItems([]);
+    setQrData(null);
+  };
+
+  const handleProductBrowse = (storeId: string, storeName: string) => {
+    setSelectedStore({ id: storeId, name: storeName });
+    setCurrentView('products');
+  };
+
+  const handleAddToCart = (item: any) => {
+    const existingItem = cartItems.find(cartItem => cartItem.id === item.id);
+    
+    if (existingItem) {
+      setCartItems(cartItems.map(cartItem =>
+        cartItem.id === item.id
+          ? { ...cartItem, quantity: cartItem.quantity + 1 }
+          : cartItem
+      ));
+    } else {
+      setCartItems([...cartItems, {
+        id: item.id || Date.now().toString(),
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity || 1,
+        location: item.location
+      }]);
+    }
+  };
+
+  const handleViewCart = () => {
+    setCurrentView('cart');
+  };
+
+  const handleUpdateQuantity = (id: string, quantity: number) => {
+    setCartItems(cartItems.map(item =>
+      item.id === id ? { ...item, quantity } : item
+    ));
+  };
+
+  const handleRemoveItem = (id: string) => {
+    setCartItems(cartItems.filter(item => item.id !== id));
+  };
+
+  const handleProcessPayment = (method: 'online' | 'cash') => {
+    const qrCode = `QR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    const newQrData = {
+      id: qrCode,
+      items: cartItems,
+      totalAmount: cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+      paymentMethod: method,
+      paymentStatus: method === 'online' ? 'completed' : 'pending',
+      timestamp: new Date(),
+      sector: selectedSector || 'general'
+    };
+    
+    setQrData(newQrData);
+    setCurrentView('qr');
+    
+    // Clear cart after successful payment
+    if (method === 'online') {
+      setCartItems([]);
+    }
+  };
+
+  const handleGetDirections = (location: string) => {
+    alert(`Getting directions to: ${location}\n\nIn a real app, this would open your preferred navigation app.`);
+  };
+
+  const handleBookAppointment = (facility: string) => {
+    alert(`Booking appointment at: ${facility}\n\nIn a real app, this would open the appointment booking system.`);
+  };
+
+  const handleApplyToInstitution = (institution: string) => {
+    alert(`Starting application for: ${institution}\n\nIn a real app, this would open the application portal.`);
+  };
+
+  const handleViewDetails = (institutionId: string) => {
+    alert(`Viewing details for institution ID: ${institutionId}\n\nIn a real app, this would show detailed information about the institution.`);
+  };
+
+  const handleApplyNow = (institutionId: string) => {
+    alert(`Starting application for institution ID: ${institutionId}\n\nIn a real app, this would start the application process.`);
+  };
+
+  const handleDirections = (location: string) => {
+    handleGetDirections(location);
+  };
+
+  const renderCurrentView = () => {
+    switch (currentView) {
+      case 'products':
+        return selectedStore ? (
+          <ProductBrowser
+            storeName={selectedStore.name}
+            onAddToCart={handleAddToCart}
+            onBack={() => setCurrentView('main')}
+          />
+        ) : null;
+        
+      case 'cart':
+        return (
+          <Cart
+            items={cartItems}
+            onUpdateQuantity={handleUpdateQuantity}
+            onRemoveItem={handleRemoveItem}
+            onProcessPayment={handleProcessPayment}
+            onClose={() => setCurrentView('main')}
+          />
+        );
+        
+      case 'qr':
+        return qrData ? (
+          <QRCodeDisplay
+            qrData={qrData}
+            onClose={() => {
+              setCurrentView('main');
+              setQrData(null);
+            }}
+          />
+        ) : null;
+        
+      default:
+        return (
+          <SectorContent
+            sector={selectedSector}
+            onProductBrowse={handleProductBrowse}
+            onDirections={handleDirections}
+            onViewDetails={handleViewDetails}
+            onApplyNow={handleApplyNow}
+          />
+        );
+    }
   };
 
   if (selectedSector) {
@@ -76,24 +229,46 @@ export const SectorDashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <Button variant="outline" onClick={handleBackToSectors} className="mb-4">
-              ← Back to Sectors
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Sectors
             </Button>
             <h1 className="text-2xl font-bold text-gray-900">
               {sectors.find(s => s.id === selectedSector)?.name}
             </h1>
           </div>
-          <Badge variant="secondary" className="flex items-center gap-2">
-            <Bot className="w-4 h-4" />
-            AI Assistant Active
-          </Badge>
+          <div className="flex items-center gap-4">
+            {cartItems.length > 0 && (
+              <Button 
+                variant="outline" 
+                onClick={handleViewCart}
+                className="flex items-center gap-2"
+              >
+                <CartIcon className="w-4 h-4" />
+                Cart ({cartItems.length})
+              </Button>
+            )}
+            <Badge variant="secondary" className="flex items-center gap-2">
+              <Bot className="w-4 h-4" />
+              AI Assistant Active
+            </Badge>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <SectorContent sector={selectedSector} />
+            {renderCurrentView()}
           </div>
           <div className="lg:col-span-1">
-            {showAIAssistant && <AIAssistant sector={selectedSector} />}
+            {showAIAssistant && currentView !== 'qr' && (
+              <AIAssistant 
+                sector={selectedSector}
+                onAddToCart={handleAddToCart}
+                onViewCart={handleViewCart}
+                onGetDirections={handleGetDirections}
+                onBookAppointment={handleBookAppointment}
+                onApplyToInstitution={handleApplyToInstitution}
+              />
+            )}
           </div>
         </div>
       </div>
