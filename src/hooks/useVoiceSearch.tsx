@@ -11,13 +11,20 @@ interface UseVoiceSearchReturn {
   isSupported: boolean;
 }
 
+// Check if speech recognition is available
+const getSpeechRecognition = () => {
+  if (typeof window === 'undefined') return null;
+  
+  return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+};
+
 export const useVoiceSearch = (onResult?: (transcript: string) => void): UseVoiceSearchReturn => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
-  const isSupported = typeof window !== 'undefined' && 
-    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+  const SpeechRecognitionClass = getSpeechRecognition();
+  const isSupported = !!SpeechRecognitionClass;
 
   const startListening = useCallback(() => {
     if (!isSupported) {
@@ -26,8 +33,7 @@ export const useVoiceSearch = (onResult?: (transcript: string) => void): UseVoic
     }
 
     try {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
+      const recognition = new SpeechRecognitionClass();
       
       recognition.continuous = true;
       recognition.interimResults = true;
@@ -38,7 +44,7 @@ export const useVoiceSearch = (onResult?: (transcript: string) => void): UseVoic
         toast.success('Voice search started - speak now!');
       };
 
-      recognition.onresult = (event) => {
+      recognition.onresult = (event: any) => {
         let finalTranscript = '';
         let interimTranscript = '';
 
@@ -59,7 +65,7 @@ export const useVoiceSearch = (onResult?: (transcript: string) => void): UseVoic
         }
       };
 
-      recognition.onerror = (event) => {
+      recognition.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
         
@@ -83,7 +89,7 @@ export const useVoiceSearch = (onResult?: (transcript: string) => void): UseVoic
       toast.error('Failed to start voice search');
       setIsListening(false);
     }
-  }, [isSupported, onResult]);
+  }, [isSupported, onResult, SpeechRecognitionClass]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {

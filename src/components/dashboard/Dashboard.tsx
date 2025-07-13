@@ -66,8 +66,8 @@ export const Dashboard = () => {
         supabase.from('products').select('*').limit(12)
       ]);
 
-      if (storesResponse.data) setStores(storesResponse.data);
-      if (productsResponse.data) setProducts(productsResponse.data);
+      if (storesResponse.data) setStores(storesResponse.data as Store[]);
+      if (productsResponse.data) setProducts(productsResponse.data as Product[]);
     } catch (error) {
       toast.error('Failed to load data');
       console.error('Error loading data:', error);
@@ -84,43 +84,43 @@ export const Dashboard = () => {
       console.log('AI Search Query:', query);
       console.log('User Location:', location);
 
-      // Save search history
+      // Save search history if user is authenticated
       if (user) {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('id')
-          .eq('auth_user_id', user.id)
-          .single();
+        try {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('id')
+            .eq('auth_user_id', user.id)
+            .maybeSingle();
 
-        if (userData) {
-          await supabase.from('search_history').insert({
-            user_id: userData.id,
-            query: query,
-            search_type: 'text',
-            location: location ? `POINT(${location.lon} ${location.lat})` : null
-          });
+          if (userData) {
+            await supabase.from('search_history').insert({
+              user_id: userData.id,
+              query: query,
+              search_type: 'text',
+              results_count: 0
+            });
+          }
+        } catch (searchHistoryError) {
+          console.log('Search history save failed:', searchHistoryError);
+          // Don't block search if history save fails
         }
       }
 
-      // Search stores by name and city
-      const storeQuery = supabase
-        .from('stores')
-        .select('*')
-        .or(`name.ilike.%${query}%,city.ilike.%${query}%,services.cs.["${query}"]`);
-
-      // Search products by name, category, and brand
-      const productQuery = supabase
-        .from('products')
-        .select('*')
-        .or(`name.ilike.%${query}%,category.ilike.%${query}%,brand.ilike.%${query}%,description.ilike.%${query}%`);
-
+      // Search stores and products
       const [storesResponse, productsResponse] = await Promise.all([
-        storeQuery,
-        productQuery
+        supabase
+          .from('stores')
+          .select('*')
+          .or(`name.ilike.%${query}%,city.ilike.%${query}%`),
+        supabase
+          .from('products')
+          .select('*')
+          .or(`name.ilike.%${query}%,category.ilike.%${query}%,brand.ilike.%${query}%,description.ilike.%${query}%`)
       ]);
 
-      const searchStores = storesResponse.data || [];
-      const searchProducts = productsResponse.data || [];
+      const searchStores = (storesResponse.data || []) as Store[];
+      const searchProducts = (productsResponse.data || []) as Product[];
 
       // AI-enhanced search results (simulate intelligent ranking)
       const enhancedStores = searchStores
@@ -159,10 +159,10 @@ export const Dashboard = () => {
     if (store.name.toLowerCase().includes(queryLower)) score += 10;
     
     // Services match
-    if (store.services.some(service => service.toLowerCase().includes(queryLower))) score += 8;
+    if (store.services && store.services.some(service => service.toLowerCase().includes(queryLower))) score += 8;
     
     // Has offers
-    if (store.offers.length > 0) score += 3;
+    if (store.offers && store.offers.length > 0) score += 3;
     
     // Location bonus (simulate proximity)
     if (location) score += 5;
@@ -274,7 +274,7 @@ export const Dashboard = () => {
                       {store.address}, {store.city}
                     </CardDescription>
                   </div>
-                  {store.offers.length > 0 && (
+                  {store.offers && store.offers.length > 0 && (
                     <Badge className="bg-red-100 text-red-700">
                       <Percent className="w-3 h-3 mr-1" />
                       Offers
@@ -288,7 +288,7 @@ export const Dashboard = () => {
                   {store.phone}
                 </div>
                 
-                {store.services.length > 0 && (
+                {store.services && store.services.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {store.services.slice(0, 3).map((service) => (
                       <Badge key={service} variant="outline" className="text-xs">
@@ -303,7 +303,7 @@ export const Dashboard = () => {
                   </div>
                 )}
 
-                {store.offers.length > 0 && (
+                {store.offers && store.offers.length > 0 && (
                   <div className="bg-yellow-50 p-2 rounded-lg">
                     <p className="text-xs text-yellow-800 font-medium">
                       🎯 {store.offers[0].description}
@@ -346,7 +346,7 @@ export const Dashboard = () => {
               <Card key={product.id} className="hover:shadow-lg transition-shadow group">
                 <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden">
                   <img
-                    src={product.image_url}
+                    src={product.image_url || '/api/placeholder/300/300'}
                     alt={product.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                   />
@@ -389,7 +389,7 @@ export const Dashboard = () => {
                   </div>
 
                   <div className="flex flex-wrap gap-1">
-                    {Object.entries(product.attributes || {})
+                    {product.attributes && Object.entries(product.attributes)
                       .filter(([_, value]) => value === true)
                       .slice(0, 2)
                       .map(([key, _]) => (
