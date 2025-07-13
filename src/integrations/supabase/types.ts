@@ -14,7 +14,175 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      products: {
+        Row: {
+          attributes: Json | null
+          brand: string | null
+          category: string
+          created_at: string
+          description: string | null
+          discount: number | null
+          id: string
+          image_url: string | null
+          name: string
+          price: number
+          store_id: string | null
+          sustainability_score: number | null
+          updated_at: string
+        }
+        Insert: {
+          attributes?: Json | null
+          brand?: string | null
+          category: string
+          created_at?: string
+          description?: string | null
+          discount?: number | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price: number
+          store_id?: string | null
+          sustainability_score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          attributes?: Json | null
+          brand?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          discount?: number | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: number
+          store_id?: string | null
+          sustainability_score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      search_history: {
+        Row: {
+          created_at: string
+          id: string
+          location: string | null
+          query: string
+          results_count: number | null
+          search_type: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          location?: string | null
+          query: string
+          results_count?: number | null
+          search_type?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location?: string | null
+          query?: string
+          results_count?: number | null
+          search_type?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "search_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stores: {
+        Row: {
+          address: string
+          city: string
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          offers: Json | null
+          phone: string | null
+          services: Json | null
+          state: string | null
+          updated_at: string
+          zip_code: string | null
+        }
+        Insert: {
+          address: string
+          city: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          offers?: Json | null
+          phone?: string | null
+          services?: Json | null
+          state?: string | null
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Update: {
+          address?: string
+          city?: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          offers?: Json | null
+          phone?: string | null
+          services?: Json | null
+          state?: string | null
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          auth_user_id: string
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          auth_user_id: string
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          auth_user_id?: string
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

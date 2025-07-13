@@ -20,11 +20,37 @@ import {
 import { toast } from 'sonner';
 import type { Tables } from '@/integrations/supabase/types';
 
-interface Store extends Tables<'stores'> {
+interface Store {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string | null;
+  zip_code: string | null;
+  phone: string | null;
+  services: any[] | null;
+  offers: any[] | null;
+  latitude: number | null;
+  longitude: number | null;
+  created_at: string;
+  updated_at: string;
   relevanceScore?: number;
 }
 
-interface Product extends Tables<'products'> {
+interface Product {
+  id: string;
+  name: string;
+  brand: string | null;
+  category: string;
+  description: string | null;
+  price: number;
+  discount: number | null;
+  image_url: string | null;
+  sustainability_score: number | null;
+  attributes: any;
+  store_id: string | null;
+  created_at: string;
+  updated_at: string;
   relevanceScore?: number;
 }
 
