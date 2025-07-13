@@ -18,30 +18,14 @@ import {
   Phone
 } from 'lucide-react';
 import { toast } from 'sonner';
+import type { Tables } from '@/integrations/supabase/types';
 
-interface Store {
-  id: string;
-  name: string;
-  address: string;
-  city: string;
-  state: string;
-  phone: string;
-  offers: any[];
-  operating_hours: any;
-  services: string[];
+interface Store extends Tables<'stores'> {
+  relevanceScore?: number;
 }
 
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  brand: string;
-  price: number;
-  discount: number;
-  sustainability_score: number;
-  image_url: string;
-  attributes: any;
+interface Product extends Tables<'products'> {
+  relevanceScore?: number;
 }
 
 export const Dashboard = () => {
@@ -128,14 +112,14 @@ export const Dashboard = () => {
           ...store,
           relevanceScore: calculateStoreRelevance(store, query, location)
         }))
-        .sort((a, b) => b.relevanceScore - a.relevanceScore);
+        .sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
 
       const enhancedProducts = searchProducts
         .map(product => ({
           ...product,
           relevanceScore: calculateProductRelevance(product, query)
         }))
-        .sort((a, b) => b.relevanceScore - a.relevanceScore);
+        .sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
 
       setSearchResults({
         stores: enhancedStores,
@@ -159,10 +143,13 @@ export const Dashboard = () => {
     if (store.name.toLowerCase().includes(queryLower)) score += 10;
     
     // Services match
-    if (store.services && store.services.some(service => service.toLowerCase().includes(queryLower))) score += 8;
+    if (store.services && Array.isArray(store.services) && store.services.some((service: any) => 
+      typeof service === 'string' && service.toLowerCase().includes(queryLower))) {
+      score += 8;
+    }
     
     // Has offers
-    if (store.offers && store.offers.length > 0) score += 3;
+    if (store.offers && Array.isArray(store.offers) && store.offers.length > 0) score += 3;
     
     // Location bonus (simulate proximity)
     if (location) score += 5;
@@ -181,13 +168,13 @@ export const Dashboard = () => {
     if (product.category.toLowerCase().includes(queryLower)) score += 7;
     
     // Brand match
-    if (product.brand?.toLowerCase().includes(queryLower)) score += 5;
+    if (product.brand && product.brand.toLowerCase().includes(queryLower)) score += 5;
     
     // Sustainability bonus
-    if (product.sustainability_score > 80) score += 3;
+    if (product.sustainability_score && product.sustainability_score > 80) score += 3;
     
     // Discount bonus
-    if (product.discount > 0) score += 2;
+    if (product.discount && product.discount > 0) score += 2;
     
     return score;
   };
@@ -274,7 +261,7 @@ export const Dashboard = () => {
                       {store.address}, {store.city}
                     </CardDescription>
                   </div>
-                  {store.offers && store.offers.length > 0 && (
+                  {store.offers && Array.isArray(store.offers) && store.offers.length > 0 && (
                     <Badge className="bg-red-100 text-red-700">
                       <Percent className="w-3 h-3 mr-1" />
                       Offers
@@ -288,11 +275,11 @@ export const Dashboard = () => {
                   {store.phone}
                 </div>
                 
-                {store.services && store.services.length > 0 && (
+                {store.services && Array.isArray(store.services) && store.services.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {store.services.slice(0, 3).map((service) => (
-                      <Badge key={service} variant="outline" className="text-xs">
-                        {service.replace('_', ' ')}
+                    {store.services.slice(0, 3).map((service: any, index: number) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {typeof service === 'string' ? service.replace('_', ' ') : String(service)}
                       </Badge>
                     ))}
                     {store.services.length > 3 && (
@@ -303,10 +290,10 @@ export const Dashboard = () => {
                   </div>
                 )}
 
-                {store.offers && store.offers.length > 0 && (
+                {store.offers && Array.isArray(store.offers) && store.offers.length > 0 && (
                   <div className="bg-yellow-50 p-2 rounded-lg">
                     <p className="text-xs text-yellow-800 font-medium">
-                      🎯 {store.offers[0].description}
+                      🎯 {(store.offers[0] as any)?.description || 'Special offer available'}
                     </p>
                   </div>
                 )}
@@ -341,7 +328,7 @@ export const Dashboard = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {displayProducts.map((product) => {
-            const pricing = formatPrice(product.price, product.discount);
+            const pricing = formatPrice(product.price, product.discount || 0);
             return (
               <Card key={product.id} className="hover:shadow-lg transition-shadow group">
                 <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden">
@@ -378,7 +365,7 @@ export const Dashboard = () => {
                       )}
                     </div>
                     
-                    {product.sustainability_score > 70 && (
+                    {product.sustainability_score && product.sustainability_score > 70 && (
                       <div className="flex items-center">
                         <Leaf className="w-4 h-4 text-green-600" />
                         <span className="text-xs text-green-600 ml-1">
@@ -389,14 +376,15 @@ export const Dashboard = () => {
                   </div>
 
                   <div className="flex flex-wrap gap-1">
-                    {product.attributes && Object.entries(product.attributes)
-                      .filter(([_, value]) => value === true)
-                      .slice(0, 2)
-                      .map(([key, _]) => (
-                        <Badge key={key} variant="outline" className="text-xs">
-                          {key.replace('_', ' ')}
-                        </Badge>
-                      ))}
+                    {product.attributes && typeof product.attributes === 'object' && 
+                      Object.entries(product.attributes as Record<string, any>)
+                        .filter(([_, value]) => value === true)
+                        .slice(0, 2)
+                        .map(([key, _]) => (
+                          <Badge key={key} variant="outline" className="text-xs">
+                            {key.replace('_', ' ')}
+                          </Badge>
+                        ))}
                   </div>
 
                   <Button className="w-full" size="sm">
